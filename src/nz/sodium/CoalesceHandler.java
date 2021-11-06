@@ -7,19 +7,20 @@ class CoalesceHandler<A> implements TransactionHandler<A> {
     this.out = out;
   }
 
-  private final Lambda2<A, A, A> f;
-  private final StreamWithSend<A> out;
-  private boolean accumValid = false;
-  private A accum;
+  final Lambda2<A, A, A> f;
+  final StreamWithSend<A> out;
+  boolean accumValid = false;
+  A accum;
 
   @Override
-  public void run(Transaction t1, A a) {
+  public void run(Transaction trans1, A a) {
     if (accumValid) {
       accum = f.apply(accum, a);
     } else {
+      @SuppressWarnings("resource")
       var self = this;
-      t1.prioritized(out.node, (t2) -> {
-        out.send(t2, self.accum);
+      trans1.prioritized(out.node, trans2 -> {
+        out.send(trans2, self.accum);
         self.accumValid = false;
         self.accum = null;
       });

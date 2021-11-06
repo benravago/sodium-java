@@ -16,8 +16,7 @@ public final class CellSink<A> extends Cell<A> {
 
   /**
    * Construct a writable cell with the specified initial value.
-   * If multiple values are sent in the same transaction,
-   * the specified function is used to combine them.
+   * If multiple values are sent in the same transaction, the specified function is used to combine them.
    */
   public CellSink(A initValue, Lambda2<A, A, A> f) {
     super(new StreamSink<A>(f), initValue);

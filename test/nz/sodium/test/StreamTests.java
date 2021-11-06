@@ -1,14 +1,21 @@
-package nz.sodium;
+package nz.sodium.test;
 
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 
-class TestStream {
+import nz.sodium.CellSink;
+import nz.sodium.Operational;
+import nz.sodium.Stream;
+import nz.sodium.StreamLoop;
+import nz.sodium.StreamSink;
+import nz.sodium.Transaction;
+
+class StreamTests {
 
   @AfterEach
   void tearDown() throws Exception {
@@ -20,7 +27,7 @@ class TestStream {
   void testSendStream() {
     var e = new StreamSink<Integer>();
     var out = new ArrayList<Integer>();
-    var l = e.listen(x -> out.add(x));
+    var l = e.listen(out::add);
     e.send(5);
     l.unlisten();
     assertEquals(Arrays.asList(5), out);
@@ -33,7 +40,7 @@ class TestStream {
     var e = new StreamSink<Integer>();
     var m = e.map(x -> Integer.toString(x));
     var out = new ArrayList<String>();
-    var l = m.listen(x -> out.add(x));
+    var l = m.listen(out::add);
     e.send(5);
     l.unlisten();
     assertEquals(Arrays.asList("5"), out);
@@ -44,7 +51,7 @@ class TestStream {
     var e = new StreamSink<Integer>();
     var m = e.mapTo("fusebox");
     var out = new ArrayList<String>();
-    var l = m.listen(x -> out.add(x));
+    var l = m.listen(out::add);
     e.send(5);
     e.send(6);
     l.unlisten();
@@ -56,7 +63,7 @@ class TestStream {
     var e1 = new StreamSink<Integer>();
     var e2 = new StreamSink<Integer>();
     var out = new ArrayList<Integer>();
-    var l = e2.orElse(e1).listen(x -> out.add(x));
+    var l = e2.orElse(e1).listen(out::add);
     e1.send(7);
     e2.send(9);
     e1.send(8);
@@ -69,32 +76,12 @@ class TestStream {
     var s1 = new StreamSink<Integer>((l, r) -> r);
     var s2 = new StreamSink<Integer>((l, r) -> r);
     var out = new ArrayList<Integer>();
-    var l = s2.orElse(s1).listen(x -> out.add(x));
-    Transaction.runVoid(() -> {
-      s1.send(7);
-      s2.send(60);
-    });
-    Transaction.runVoid(() -> {
-      s1.send(9);
-    });
-    Transaction.runVoid(() -> {
-      s1.send(7);
-      s1.send(60);
-      s2.send(8);
-      s2.send(90);
-    });
-    Transaction.runVoid(() -> {
-      s2.send(8);
-      s2.send(90);
-      s1.send(7);
-      s1.send(60);
-    });
-    Transaction.runVoid(() -> {
-      s2.send(8);
-      s1.send(7);
-      s2.send(90);
-      s1.send(60);
-    });
+    var l = s2.orElse(s1).listen(out::add);
+    Transaction.runVoid(() -> { s1.send(7); s2.send(60); });
+    Transaction.runVoid(() -> { s1.send(9); });
+    Transaction.runVoid(() -> { s1.send(7); s1.send(60); s2.send(8); s2.send(90); });
+    Transaction.runVoid(() -> { s2.send(8); s2.send(90); s1.send(7); s1.send(60); });
+    Transaction.runVoid(() -> { s2.send(8); s1.send(7); s2.send(90); s1.send(60); });
     l.unlisten();
     assertEquals(Arrays.asList(60, 9, 90, 90, 90), out);
   }
@@ -103,14 +90,9 @@ class TestStream {
   void testCoalesce() {
     var s = new StreamSink<Integer>((Integer a, Integer b) -> a + b);
     var out = new ArrayList<Integer>();
-    var l = s.listen(x -> out.add(x));
-    Transaction.runVoid(() -> {
-      s.send(2);
-    });
-    Transaction.runVoid(() -> {
-      s.send(8);
-      s.send(40);
-    });
+    var l = s.listen(out::add);
+    Transaction.runVoid(() -> { s.send(2); });
+    Transaction.runVoid(() -> { s.send(8); s.send(40); });
     l.unlisten();
     assertEquals(Arrays.asList(2, 48), out);
   }
@@ -119,7 +101,7 @@ class TestStream {
   void testFilter() {
     var e = new StreamSink<Character>();
     var out = new ArrayList<Character>();
-    var l = e.filter(c -> Character.isUpperCase(c)).listen(c -> out.add(c));
+    var l = e.filter(c -> Character.isUpperCase(c)).listen(out::add);
     e.send('H');
     e.send('o');
     e.send('I');
@@ -131,7 +113,7 @@ class TestStream {
   void testFilterOptional() {
     var e = new StreamSink<Optional<String>>();
     var out = new ArrayList<String>();
-    var l = Stream.filterOptional(e).listen(s -> out.add(s));
+    var l = Stream.filterOptional(e).listen(out::add);
     e.send(Optional.of("tomato"));
     e.send(Optional.empty());
     e.send(Optional.of("peach"));
@@ -150,7 +132,7 @@ class TestStream {
       return ec_;
     });
     var out = new ArrayList<Integer>();
-    var l = ec.listen(x -> out.add(x));
+    var l = ec.listen(out::add);
     ea.send(2);
     ea.send(52);
     l.unlisten();
@@ -162,7 +144,7 @@ class TestStream {
     var ec = new StreamSink<Character>();
     var epred = new CellSink<Boolean>(true);
     var out = new ArrayList<Character>();
-    var l = ec.gate(epred).listen(x -> out.add(x));
+    var l = ec.gate(epred).listen(out::add);
     ec.send('H');
     epred.send(false);
     ec.send('O');
@@ -176,8 +158,8 @@ class TestStream {
   void testCollect() {
     var ea = new StreamSink<Integer>();
     var out = new ArrayList<Integer>();
-    var sum = ea.collect(0, (a, s) -> new Tuple2<>(a + s + 100, a + s));
-    var l = sum.listen(x -> out.add(x));
+    var sum = ea.collect(0, (a, s) -> new Stream.State<>(a + s + 100, a + s));
+    var l = sum.listen(out::add);
     ea.send(5);
     ea.send(7);
     ea.send(1);
@@ -192,7 +174,7 @@ class TestStream {
     var ea = new StreamSink<Integer>();
     var out = new ArrayList<Integer>();
     var sum = ea.accum(100, (a, s) -> a + s);
-    var l = sum.listen(x -> out.add(x));
+    var l = sum.listen(out::add);
     ea.send(5);
     ea.send(7);
     ea.send(1);
@@ -206,7 +188,7 @@ class TestStream {
   void testOnce() {
     var e = new StreamSink<Character>();
     var out = new ArrayList<Character>();
-    var l = e.once().listen(x -> out.add(x));
+    var l = e.once().listen(out::add);
     e.send('A');
     e.send('B');
     e.send('C');
@@ -219,7 +201,7 @@ class TestStream {
     var e = new StreamSink<Character>();
     var b = e.hold(' ');
     var out = new ArrayList<Character>();
-    var l = Operational.defer(e).snapshot(b).listen(x -> out.add(x));
+    var l = Operational.defer(e).snapshot(b).listen(out::add);
     e.send('C');
     e.send('B');
     e.send('A');

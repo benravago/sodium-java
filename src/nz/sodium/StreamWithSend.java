@@ -4,9 +4,10 @@ import java.util.HashSet;
 
 class StreamWithSend<A> extends Stream<A> {
 
-  protected void send(Transaction t1, final A a) {
+  @SuppressWarnings("unchecked")
+  protected void send(Transaction trans, A a) {
     if (firings.isEmpty()) {
-      t1.last(firings::clear);
+      trans.last(firings::clear);
     }
     firings.add(a);
 
@@ -15,20 +16,20 @@ class StreamWithSend<A> extends Stream<A> {
     try {
       listeners = new HashSet<>(node.listeners);
     } finally {
-      Transaction.listenersLock.lock();
+      Transaction.listenersLock.unlock();
     }
     for (var target : listeners) {
-      t1.prioritized(target.node, t2 -> {
+      trans.prioritized(target.node, trans2 -> {
         Transaction.inCallback++;
         try {
           // Don't allow transactions to interfere with Sodium internals.
           // Dereference the weak reference
           var uta = target.action.get();
           if (uta != null) { // If it hasn't been gc'ed..., call it
-            ((TransactionHandler<A>) uta).run(t2, a);
+            ((TransactionHandler<A>) uta).run(trans2, a);
           }
-        } catch (Throwable e) {
-          e.printStackTrace();
+        } catch (Throwable t) {
+          t.printStackTrace();
         } finally {
           Transaction.inCallback--;
         }

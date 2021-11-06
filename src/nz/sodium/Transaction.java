@@ -1,12 +1,13 @@
 package nz.sodium;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.PriorityQueue;
+
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -24,14 +25,14 @@ public final class Transaction {
   // True if we need to re-generate the priority queue.
   boolean toRegen = false;
 
-  private static class Entry implements Comparable<Entry> {
-    private static long nextSeq;
+  static class Entry implements Comparable<Entry> {
 
-    private final Node rank;
-    private final Handler<Transaction> action;
-    private final long seq;
+    final Node rank;
+    final Handler<Transaction> action;
+    static long nextSeq;
+    long seq;
 
-    public Entry(Node rank, Handler<Transaction> action) {
+    Entry(Node rank, Handler<Transaction> action) {
       this.rank = rank;
       this.action = action;
       this.seq = nextSeq++;
@@ -40,7 +41,7 @@ public final class Transaction {
     @Override
     public int compareTo(Entry o) {
       var answer = rank.compareTo(o.rank);
-      if (answer == 0) {  // Same rank: preserve chronological sequence.
+      if (answer == 0) { // Same rank: preserve chronological sequence.
         if (seq < o.seq) {
           answer = -1;
         } else if (seq > o.seq) {
@@ -49,18 +50,18 @@ public final class Transaction {
       }
       return answer;
     }
+
   }
 
-  private final PriorityQueue<Entry> prioritizedQ = new PriorityQueue<>();
-  private final Set<Entry> entries = new HashSet<>();
-  private final List<Runnable> lastQ = new ArrayList<>();
-  private Map<Integer, Handler<Transaction>> postQ;
+  final PriorityQueue<Entry> prioritizedQ = new PriorityQueue<>();
+  final Set<Entry> entries = new HashSet<>();
+  final List<Runnable> lastQ = new ArrayList<>();
+  Map<Integer, Handler<Transaction>> postQ;
 
+  static Transaction currentTransaction;
   static int inCallback;
-
-  private static Transaction currentTransaction;
-  private static final List<Runnable> onStartHooks = new ArrayList<Runnable>();
-  private static boolean runningOnStartHooks = false;
+  static List<Runnable> onStartHooks = new ArrayList<>();
+  static boolean runningOnStartHooks = false;
 
   /**
    * Return the current transaction, or null if there isn't one.
@@ -76,15 +77,12 @@ public final class Transaction {
 
   /**
    * Run the specified code inside a single transaction.
-   *
-   * In most cases this is not needed, because the primitives always create
-   * their own transaction automatically, but it is needed in some circumstances.
+   * In most cases this is not needed, because the primitives always create their own transaction automatically, but it is needed in some circumstances.
    */
   public static void runVoid(Runnable code) {
     transactionLock.lock();
     try {
-      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock),
-      // then keep using that same transaction.
+      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock), then keep using that same transaction.
       var transWas = currentTransaction;
       try {
         startIfNecessary();
@@ -104,16 +102,14 @@ public final class Transaction {
   }
 
   /**
-   * Run the specified code inside a single transaction,
-   * with the contained code returning a value of the parameter type A.
-   * In most cases this is not needed, because the primitives always create
-   * their own transaction automatically, but it is needed in some circumstances.
+   * Run the specified code inside a single transaction, with the contained code returning a value of the parameter type A.
+   * In most cases this is not needed, because the primitives always create their own
+   * transaction automatically, but it is needed in some circumstances.
    */
   public static <A> A run(Lambda0<A> code) {
     transactionLock.lock();
     try {
-      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock),
-      // then keep using that same transaction.
+      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock), then keep using that same transaction.
       var transWas = currentTransaction;
       try {
         startIfNecessary();
@@ -135,8 +131,7 @@ public final class Transaction {
   static void run(Handler<Transaction> code) {
     transactionLock.lock();
     try {
-      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock),
-      // then keep using that same transaction.
+      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock), then keep using that same transaction.
       var transWas = currentTransaction;
       try {
         startIfNecessary();
@@ -172,8 +167,7 @@ public final class Transaction {
   static <A> A apply(Lambda1<Transaction, A> code) {
     transactionLock.lock();
     try {
-      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock),
-      // then keep using that same transaction.
+      // If we are already inside a transaction (which must be on the same thread otherwise we wouldn't have acquired transactionLock), then keep using that same transaction.
       var transWas = currentTransaction;
       try {
         startIfNecessary();
@@ -192,7 +186,7 @@ public final class Transaction {
     }
   }
 
-  private static void startIfNecessary() {
+  static void startIfNecessary() {
     if (currentTransaction == null) {
       if (!runningOnStartHooks) {
         runningOnStartHooks = true;
@@ -230,34 +224,23 @@ public final class Transaction {
     }
     // If an entry exists already, combine the old one with the new one.
     var existing = postQ.get(childIx);
-    var actionIx = existing == null
-      ? action
-      : new Handler<Transaction>() {
-          @Override
-          public void run(Transaction trans) {
-            existing.run(trans);
-            action.run(trans);
-          }
-        };
-    postQ.put(childIx, actionIx);
+    postQ.put(childIx,
+      (existing == null ? action : trans -> { existing.run(trans); action.run(trans); })
+    );
   }
 
   /**
-   * Execute the specified code after the current transaction is closed,
-   * or immediately if there is no current transaction.
+   * Execute the specified code after the current transaction is closed, or immediately if there is no current transaction.
    */
   public static void post(Runnable action) {
-    Transaction.run(t1 -> {
-      // -1 will mean it runs before anything split/deferred, and will run outside a transaction context.
-      t1.post_(-1, t2 -> action.run());
-    });
+    Transaction.run(trans -> trans.post_(-1, trans1 -> action.run()) );
+    // -1 will mean it runs before anything split/deferred, and will run outside a transaction context.
   }
 
   /**
-   * If the priority queue has entries in it when we modify any of the nodes' ranks,
-   * then we need to re-generate it to make sure it's up-to-date.
+   * If the priority queue has entries in it when we modify any of the nodes' ranks, then we need to re-generate it to make sure it's up-to-date.
    */
-  private void checkRegen() {
+  void checkRegen() {
     if (toRegen) {
       toRegen = false;
       prioritizedQ.clear();
@@ -286,7 +269,7 @@ public final class Transaction {
         var iter = postQ.entrySet().iterator();
         if (iter.hasNext()) {
           var e = iter.next();
-          int ix = e.getKey();
+          var ix = e.getKey();
           var h = e.getValue();
           iter.remove();
           var parent = currentTransaction;

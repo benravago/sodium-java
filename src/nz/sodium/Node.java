@@ -15,15 +15,17 @@ class Node implements Comparable<Node> {
   }
 
   static class Target {
+
     Target(TransactionHandler<Unit> action, Node node) {
       this.action = new WeakReference<>(action);
       this.node = node;
     }
+
     final WeakReference<TransactionHandler<Unit>> action;
     final Node node;
   }
 
-  private long rank;
+  long rank;
   List<Target> listeners = new ArrayList<>();
 
   /**
@@ -56,13 +58,7 @@ class Node implements Comparable<Node> {
 
   @Override
   public int compareTo(Node o) {
-    if (rank < o.rank) {
-      return -1;
-    }
-    if (rank > o.rank) {
-      return 1;
-    }
-    return 0;
+    return (rank < o.rank) ? -1 : (rank > o.rank) ? 1 : 0;
   }
 
 }

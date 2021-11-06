@@ -2,7 +2,7 @@ package nz.sodium;
 
 class LazyCell<A> extends Cell<A> {
 
-  LazyCell(final Stream<A> event, final Lazy<A> lazyInitValue) {
+  LazyCell(Stream<A> event, Lazy<A> lazyInitValue) {
     super(event, null);
     this.lazyInitValue = lazyInitValue;
   }
