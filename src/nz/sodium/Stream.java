@@ -454,5 +454,5 @@ public class Stream<A> implements AutoCloseable {
     finalizers.clear();
   }
 
-  @Override protected void finalize() { close(); }
+  // void finalize() { close(); }
 }

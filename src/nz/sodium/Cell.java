@@ -228,7 +228,7 @@ public class Cell<A> implements AutoCloseable {
           }
         }
 
-        @Override protected void finalize() { close(); }
+        // void finalize() { close(); }
       };
       var l1 = b_a.value(trans0).listen_(out.node, h);
       return out.lastFiringOnly(trans0).unsafeAddCleanup(l1).holdLazy(za);
@@ -265,7 +265,7 @@ public class Cell<A> implements AutoCloseable {
         }
       }
 
-      @Override protected void finalize() { close(); }
+      // void finalize() { close(); }
     };
     var l1 = bea.updates().listen(out.node, trans1, h1, false);
     return out.unsafeAddCleanup(l1);
@@ -279,7 +279,7 @@ public class Cell<A> implements AutoCloseable {
     }
   }
 
-  @Override protected void finalize() { close(); }
+  // void finalize() { close(); }
 
   /**
    * Listen for updates to the value of this cell.
