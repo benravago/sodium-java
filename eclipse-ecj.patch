@@ -1,0 +1,26 @@
+diff -ur nb/src/nz/sodium/Cell.java src/nz/sodium/Cell.java
+--- nb/src/nz/sodium/Cell.java	2021-11-08 11:03:57.000000000 -0500
++++ src/nz/sodium/Cell.java	2021-12-22 15:07:55.715766093 -0500
+@@ -157,10 +157,12 @@
+    * This is the primitive for all function lifting.
+    */
+   public static <A, B> Cell<B> apply(Cell<Lambda1<A, B>> bf, Cell<A> ba) {
+-    return Transaction.apply(trans0 -> {
++    // note: in Eclipse, we can't lambda-ize these ...
++    return Transaction.apply(new Lambda1<Transaction, Cell<B>>() {
++      @Override public Cell<B> apply(Transaction trans0) {
+       @SuppressWarnings("resource")
+       var out = new StreamWithSend<B>();
+-
++      // ... because 'ecj' doesn't like this construct
+       class ApplyHandler implements Handler<Transaction> {
+         @Override
+         public void run(Transaction trans1) {
+@@ -198,6 +200,7 @@
+         .unsafeAddCleanup(l2)
+         .unsafeAddCleanup(() -> in_target.unlinkTo(node_target))
+         .holdLazy(new Lazy<>(() -> bf.sampleNoTrans().apply(ba.sampleNoTrans())));
++      } // Cell apply()
+     });
+   }
+ 
