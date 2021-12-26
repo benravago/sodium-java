@@ -7,7 +7,7 @@ import nz.sodium.Cell;
 import nz.sodium.Stream;
 import nz.sodium.Stream.State;
 
-public class Memory1 extends Timed{
+public class Memory1 extends Timed {
   public static void main(String[] args) {
     new Memory1().run();
   }

@@ -33,7 +33,6 @@ class Timed {
     var r = count > 0 ? count / msec(elapsed) : 0;
     var m = Runtime.getRuntime().totalMemory() / 1.e+6;
     System.out.format("mem %1.2f mb   %d cyc  %1.3f c/ms \n", m, count, r);
-        // null, null).println("mem " + Runtime.getRuntime().totalMemory() + ' ' + count + ' ' + r);
   }
 
   static double sec(long nano) { return nano/1e+9; }

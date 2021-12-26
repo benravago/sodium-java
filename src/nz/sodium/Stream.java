@@ -67,8 +67,8 @@ public class Stream<A> implements AutoCloseable {
   /**
    * Listen for events/firings on this stream.
    * This is the observer pattern.
-   * The  returned {@link Listener} has a {@link Listener#unlisten()} method to cause the listener to be removed.
-   * This is an OPERATIONAL mechanism is for interfacing between the world of I/O and for FRP.
+   * The returned {@link Listener} has a {@link Listener#unlisten()} method to cause the listener to be removed.
+   * This is an OPERATIONAL mechanism for interfacing between the world of I/O and for FRP.
    * @param handler The handler to execute when there's a new value. You should make no assumptions about what thread you are called on, and the handler should not block. You are not allowed to use {@link CellSink#send(Object)} or {@link StreamSink#send(Object)} in the handler. An exception will be thrown, because you are not meant to use this to create your own primitives.
    */
   public final Listener listen(Handler<A> handler) {

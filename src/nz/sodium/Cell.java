@@ -157,10 +157,12 @@ public class Cell<A> implements AutoCloseable {
    * This is the primitive for all function lifting.
    */
   public static <A, B> Cell<B> apply(Cell<Lambda1<A, B>> bf, Cell<A> ba) {
-    return Transaction.apply(trans0 -> {
+    // note: in Eclipse, we can't lambda-ize these ...
+    return Transaction.apply(new Lambda1<Transaction, Cell<B>>() {
+      @Override public Cell<B> apply(Transaction trans0) {
       @SuppressWarnings("resource")
       var out = new StreamWithSend<B>();
-
+      // ... because 'ecj' doesn't like this construct
       class ApplyHandler implements Handler<Transaction> {
         @Override
         public void run(Transaction trans1) {
@@ -198,6 +200,7 @@ public class Cell<A> implements AutoCloseable {
         .unsafeAddCleanup(l2)
         .unsafeAddCleanup(() -> in_target.unlinkTo(node_target))
         .holdLazy(new Lazy<>(() -> bf.sampleNoTrans().apply(ba.sampleNoTrans())));
+      } // Cell apply()
     });
   }
 
